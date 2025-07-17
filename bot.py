@@ -2,10 +2,13 @@ import os
 import requests
 import asyncio
 import random
+import tempfile
+from telegram.helpers import escape_markdown
+from telegram.constants import ChatAction
 from ai import ask_ai
 from dotenv import load_dotenv
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.constants import ParseMode
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputFile
+from telegram.constants import ParseMode, ChatAction
 from telegram.ext import (
     ApplicationBuilder, CommandHandler, CallbackQueryHandler,
     MessageHandler, ContextTypes, filters
@@ -179,38 +182,75 @@ async def reply_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     user_id = user.id
     name = user.first_name or "kamu"
-    user_message = update.message.text.strip()
 
-    print(f"[{name}] mengetik: {user_message}")
+    # === Jika pesan berupa foto ===
+    if update.message.photo:
+        image_file = await update.message.photo[-1].get_file()
+        tmp_dir = tempfile.gettempdir()
+        image_path = os.path.join(tmp_dir, f"yui_{user_id}.jpg")
+        await image_file.download_to_drive(image_path)
+        caption = update.message.caption or ""
 
-    state = user_states.get(user_id, "active")
+        await update.message.reply_chat_action(ChatAction.UPLOAD_PHOTO)
 
-    if state == "curhat_ai":
-        print(f"[{name}] (curhat AI): {user_message}")
-        await update.message.reply_chat_action("typing")
+        await update.message.reply_chat_action(ChatAction.TYPING)
+        await asyncio.sleep(2)  # Efek mikir dulu bentar
+        await update.message.reply_text("Yui lihat-lihat dulu ya gambarnya... Hmm... 🤔")
+        await asyncio.sleep(2)
 
         try:
-            ai_reply = await asyncio.to_thread(ask_ai, user_message)
+            ai_reply = await asyncio.to_thread(
+                ask_ai,
+                user_id=user_id,
+                user_input=caption,
+                image_path=image_path
+            )
+            ai_reply += "\n\n*Semoga membantu yaa~ Kalau ada yang bingung, bilang aja sama akuu.. okay..* "
+
+            escaped = escape_markdown(ai_reply, version=2)
+            await update.message.reply_text(escaped, parse_mode=ParseMode.MARKDOWN_V2)
         except Exception as e:
-            ai_reply = f"⚠️ Yui gagal menghubungi AI: {str(e)}"
-
-        yui_response = f"💬 *Yui bilang:*\n\n{ai_reply}\n\n(*tehe~ aku selalu siap dengerin*) 💖"
-        await update.message.reply_text(yui_response, parse_mode=ParseMode.MARKDOWN)
+            error_msg = escape_markdown(f"⚠️ Yui gagal menghubungi AI: {str(e)}", version=2)
+            await update.message.reply_text(error_msg, parse_mode=ParseMode.MARKDOWN_V2)
         return
 
-    if state != "active":
+    # Kalau bukan teks, abaikan
+    if not update.message.text:
         return
 
-    greetings = ["hai", "halo", "hi", "yo", "assalamualaikum", "selamat pagi", "selamat siang", "selamat sore", "selamat malam"]
-    if any(greet in user_message.lower() for greet in greetings):
-        reply = generate_greeting(name)
-        await update.message.reply_text(reply)
+    user_message = update.message.text.strip()
+    print(f"[{name}] ({user_states.get(user_id, 'unknown')}): {user_message}")
+    state = user_states.get(user_id, "active")
+
+    # === MODE CURHAT ===
+    if state == "curhat_ai":
+        await update.message.reply_chat_action(ChatAction.TYPING)
+        try:
+            ai_reply = await asyncio.to_thread(ask_ai, user_id=user_id, user_input=user_message)
+            escaped = escape_markdown(ai_reply, version=2)
+            await update.message.reply_text(escaped, parse_mode=ParseMode.MARKDOWN_V2)
+        except Exception as e:
+            error_msg = escape_markdown(f"⚠️ Yui gagal menghubungi AI: {str(e)}", version=2)
+            await update.message.reply_text(error_msg, parse_mode=ParseMode.MARKDOWN_V2)
         return
 
-    # Default balasan
-    reply = f"*Kamu bilang:* \"{user_message}\"\n\nYui dengerin, kok. Cerita aja kalau ada yang pengen kamu bagi 😊"
-    await update.message.reply_text(reply, parse_mode=ParseMode.MARKDOWN)
+    # === MODE AKTIF (biasa) ===
+    if state == "active":
+        greetings = ["hai", "halo", "hi", "yo", "assalamualaikum", "selamat pagi", "selamat siang", "selamat sore", "selamat malam"]
+        if any(greet in user_message.lower() for greet in greetings):
+            reply = generate_greeting(name)
+            await update.message.reply_text(reply)
+            return
 
+        reply = f"*Kamu bilang:* \"{user_message}\"\n\nYui dengerin, kok. Cerita aja kalau ada yang pengen kamu bagi 😊"
+        await update.message.reply_text(reply, parse_mode=ParseMode.MARKDOWN)
+        return
+
+    # === MODE STOP ===
+    if state == "stopped":
+        print(f"[{name}] sedang dalam mode 'stopped' dan tidak dibalas.")
+        return
+    
 # ======= Main =======
 def main():
     if TELEGRAM_TOKEN is None:
@@ -228,7 +268,7 @@ def main():
     app.add_handler(CommandHandler("stop", stop))
     app.add_handler(CommandHandler("clearchat", clearchat))
     app.add_handler(CallbackQueryHandler(button_handler))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, reply_message))
+    app.add_handler(MessageHandler(filters.ALL, reply_message))
 
     print("✅ Yui Bot aktif dan siap menyapa kamu 🌸")
     app.run_polling()

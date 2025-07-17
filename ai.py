@@ -30,7 +30,7 @@ def encode_image_to_base64(image_path):
         return base64.b64encode(img_file.read()).decode("utf-8")
 
 def ask_ai(user_id, user_input=None, image_path=None):
-    url = "https://generativelanguage.googleapis.com/v1/models/gemini-pro-vision:generateContent"
+    url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
     headers = {
         "Content-Type": "application/json",
         "X-Goog-Api-Key": GEMINI_API_KEY
@@ -39,7 +39,7 @@ def ask_ai(user_id, user_input=None, image_path=None):
     memory = load_user_memory(user_id)
     parts = []
 
-    # Set system prompt
+    # System prompt
     system_prompt = (
         "Kamu adalah Yui Hirasawa dari anime K-ON! Ceria, polos, pintar, dan ramah. "
         "Suka main gitar, ngemil kue, dan ngobrol seru sama temen. "
@@ -48,10 +48,12 @@ def ask_ai(user_id, user_input=None, image_path=None):
     )
     parts.append({"text": system_prompt})
 
+    # Tambah input user
     if user_input:
-        parts.append({"text": f"Teman kamu bilang: {user_input}"})
+        parts.append({"text": user_input})
         memory.append({"role": "user", "text": user_input})
 
+    # Tambah gambar jika ada
     if image_path:
         img_data = encode_image_to_base64(image_path)
         parts.append({
@@ -65,20 +67,22 @@ def ask_ai(user_id, user_input=None, image_path=None):
     body = {
         "contents": [
             {
+                "role": "user",
                 "parts": parts
             }
         ]
     }
 
     response = requests.post(url, headers=headers, json=body)
+
     if response.status_code != 200:
         raise Exception(f"⚠️ Yui gagal menghubungi AI: {response.status_code} {response.text}")
 
-    result = response.json()
     try:
+        result = response.json()
         reply = result["candidates"][0]["content"]["parts"][0]["text"]
-    except Exception:
-        raise Exception("⚠️ Yui gagal memahami balasan dari AI")
+    except Exception as e:
+        raise Exception(f"⚠️ Yui gagal memahami balasan dari AI: {e}")
 
     memory.append({"role": "yui", "text": reply})
     save_user_memory(user_id, memory)
