@@ -20,7 +20,7 @@ Yui adalah chatbot Telegram dengan kepribadian **tsundere**, **dry-text**, dan s
 
 ### 1. Clone Repo
 ```bash
-git clone https://github.com/kamu/yui-telegram-bot.git
+git clone https://github.com/bondanbanuaji/yuibot-v1.gi
 cd yui-telegram-bot
 ```
 
@@ -32,8 +32,8 @@ pip install -r requirements.txt
 ### 3. Konfigurasi `.env`
 Buat file `.env` di root folder dengan isi seperti ini:
 ```
-BOT_TOKEN=your_telegram_bot_token
-GEMINI_API_KEY=your_google_gemini_api_key
+TELEGRAM_BOT_TOKEN = your_telegram_bot_token_here
+GEMINI_API_KEY = your_gemini_api_key_here
 ```
 
 ---
