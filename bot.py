@@ -163,12 +163,21 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif query.data == "cancel_clear":
         await query.edit_message_text("❎ Oke deh, penghapusan dibatalkan.")
 
-# ======= Balasan Pesan Biasa =======
+# ======= Message Handler =======
+def generate_greeting(name):
+    responses = [
+        f"Hai juga, {name}~ 😊",
+        f"Halo {name}! Gimana kabarmu hari ini?",
+        f"Yui senang kamu nyapa duluan, {name} 😄",
+        f"Haiii {name}, aku di sini~ ✨"
+    ]
+    return random.choice(responses)
+
 async def reply_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     user_id = user.id
-    name = user.first_name if user else "kamu"
-    user_message = update.message.text
+    name = user.first_name or "kamu"
+    user_message = update.message.text.strip()
 
     print(f"[{name}] mengetik: {user_message}")
 
@@ -177,21 +186,27 @@ async def reply_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if state == "curhat_ai":
         print(f"[{name}] (curhat AI): {user_message}")
         await update.message.reply_chat_action("typing")
-        
+
         try:
             ai_reply = await asyncio.to_thread(ask_ai, user_message)
         except Exception as e:
             ai_reply = f"⚠️ Yui gagal menghubungi AI: {str(e)}"
-        
-        await update.message.reply_text(ai_reply)
-        return
 
+        yui_response = f"💬 *Yui bilang:*\n\n{ai_reply}\n\n(*tehe~ aku selalu siap dengerin*) 💖"
+        await update.message.reply_text(yui_response, parse_mode=ParseMode.MARKDOWN)
+        return
 
     if state != "active":
         return
 
-    # Default balasan normal
-    reply = f"kamu bilang:* \"{user_message}\"*\n\nYui dengerin, loh~ 😊"
+    greetings = ["hai", "halo", "hi", "yo", "assalamualaikum", "selamat pagi", "selamat siang", "selamat sore", "selamat malam"]
+    if any(greet in user_message.lower() for greet in greetings):
+        reply = generate_greeting(name)
+        await update.message.reply_text(reply)
+        return
+
+    # Default balasan
+    reply = f"*Kamu bilang:* \"{user_message}\"\n\nYui dengerin, kok. Cerita aja kalau ada yang pengen kamu bagi 😊"
     await update.message.reply_text(reply, parse_mode=ParseMode.MARKDOWN)
 
 # ======= Main =======
@@ -210,7 +225,7 @@ def main():
     app.add_handler(CommandHandler("curhat", curhat))
     app.add_handler(CommandHandler("stop", stop))
     app.add_handler(CommandHandler("clearchat", clearchat))
-    app.add_handler(CallbackQueryHandler(button_handler))  # <- penting!
+    app.add_handler(CallbackQueryHandler(button_handler))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, reply_message))
 
     print("✅ Yui Bot aktif dan siap menyapa kamu 🌸")
