@@ -167,7 +167,7 @@ async def reply_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_message = update.message.text
     print(f"[{name}] mengetik: {user_message}")
 
-    reply = f"📩 *{name}*, kamu bilang:* \"_{user_message}_\"*\n\nYui dengerin, loh~ 😊"
+    reply = f"kamu bilang:* \"{user_message}\"*\n\nYui dengerin, loh~ 😊"
     await update.message.reply_text(reply, parse_mode=ParseMode.MARKDOWN)
 
 # ======= Main =======
