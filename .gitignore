@@ -1,9 +1,7 @@
 # Abaikan file environment
 .env
 
-# Abaikan file cache Python
 __pycache__/
 *.pyc
 
-# Abaikan file sistem
 .DS_Store
