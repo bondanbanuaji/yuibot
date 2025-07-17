@@ -1,17 +1,21 @@
 import os
 import requests
+import html
 import asyncio
 import random
 import tempfile
 from telegram.helpers import escape_markdown
-from telegram.constants import ChatAction
+from telegram.constants import ChatAction, ParseMode
 from ai import ask_ai
 from dotenv import load_dotenv
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputFile
-from telegram.constants import ParseMode, ChatAction
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
-    ApplicationBuilder, CommandHandler, CallbackQueryHandler,
-    MessageHandler, ContextTypes, filters
+    ApplicationBuilder,
+    CallbackQueryHandler,
+    CommandHandler,
+    MessageHandler,
+    ContextTypes,
+    filters
 )
 
 # Load token dari .env
@@ -20,13 +24,29 @@ TELEGRAM_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 
 # Penyimpanan status user
 user_states = {}
+user_contexts = {}
+
+# Fungsi untuk mengirim pesan panjang
+async def send_long_message(update, text, parse_mode=ParseMode.HTML):
+    MAX_LENGTH = 4000
+    if parse_mode == ParseMode.HTML:
+        text = html.escape(text)  # ⬅️ Ini penting untuk hindari error entity
+
+    if len(text) <= MAX_LENGTH:
+        await update.message.reply_text(text, parse_mode=parse_mode)
+    else:
+        for i in range(0, len(text), MAX_LENGTH):
+            chunk = text[i:i + MAX_LENGTH]
+            await update.message.reply_text(chunk, parse_mode=parse_mode)
 
 # ======= /start =======
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     user_id = user.id
     user_states[user_id] = "active"
+    user_contexts[user_id] = {"texts": [], "images": []}
     name = user.first_name if user else "teman baru"
+    emotions = ["(/// >///<)", "hmph...", "apa sih, GR banget! 😤", "tapi yaudah deh... aku temenin 🥺", "eh?! siapa yang peduli sama kamu?! 😳"]
 
     await update.message.reply_animation(
         animation="https://media1.tenor.com/m/ohxROUA8aW0AAAAd/shy-cute.gif"
@@ -34,8 +54,11 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     welcome_text = (
         f"🌸 Hai, *{name}*~\n\n"
-        "Namaku *Yui*, dan aku di sini buat nemenin kamu ngobrol, semangatin, atau sekadar dengerin curhatanmu 🫶\n\n"
-        "✨ Cukup kirim pesan apa aja, nanti Yui balas dengan gaya Yui~\n"
+        f"{random.choice(emotions)}\n\n"
+        f"H-Hai, *{name}*... j-jangan salah paham ya... b-bukan karena aku kangen atau apa! 😤\n\n"
+        "Namaku *Yui*, dan aku bakal nemenin kamu kalau kamu lagi butuh temen ngobrol...\n"
+        "tapi jangan manja ya! ...meski aku nggak keberatan sih... b-baka! 😳\n\n"
+        "_Kirim pesan aja... aku mungkin bales, kalau aku mood 😤_"
         "📌 Cobain juga beberapa perintah seru:\n"
         "  • /motivasi — buat semangat lagi\n"
         "  • /quotes — kata bijak hari ini\n"
@@ -110,11 +133,9 @@ async def pantun(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def curhat(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     user_id = user.id
-    name = user.first_name or "teman"
     user_states[user_id] = "curhat_ai"
-
     balasan = (
-        " *Mode Curhat Yui sudah nyala!*\n hehe\n\n"
+        " *Mode Curhat Yui sudah nyala!*\nhehe\n\n"
         "_Sekarang kamu bisa cerita apa aja, dan Yui bakal bantu jawab sebisanya._\n"
         "Ketik pesanmu dan keluarkan unek-unek kamu disini~ \n\n"
         "Ketik /stop kalau ingin keluar dari mode ini."
@@ -125,9 +146,8 @@ async def curhat(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def stop(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     user_states[user_id] = "stopped"
-    await update.message.reply_text(
-        "🚫 Yui bakal diam dulu ya.\nKalau kamu butuh aku lagi, cukup kirim /start 🌸"
-    )
+    user_contexts.pop(user_id, None)
+    await update.message.reply_text("🚫 Yui bakal diam dulu ya.\nKalau kamu butuh aku lagi, cukup kirim /start 🌸")
 
 # ======= /clearchat =======
 async def clearchat(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -158,13 +178,11 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if query.data == "confirm_clear":
         chat_id = query.message.chat_id
         await query.edit_message_text("🧹 Menghapus semua chat...")
-
         for i in range(query.message.message_id, query.message.message_id - 100, -1):
             try:
                 await context.bot.delete_message(chat_id=chat_id, message_id=i)
             except:
                 continue
-
     elif query.data == "cancel_clear":
         await query.edit_message_text("❎ Oke deh, penghapusan dibatalkan.")
 
@@ -183,7 +201,7 @@ async def reply_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = user.id
     name = user.first_name or "kamu"
 
-    # === Jika pesan berupa foto ===
+    # === FOTO ===
     if update.message.photo:
         image_file = await update.message.photo[-1].get_file()
         tmp_dir = tempfile.gettempdir()
@@ -192,11 +210,10 @@ async def reply_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         caption = update.message.caption or ""
 
         await update.message.reply_chat_action(ChatAction.UPLOAD_PHOTO)
-
         await update.message.reply_chat_action(ChatAction.TYPING)
-        await asyncio.sleep(2)  # Efek mikir dulu bentar
-        await update.message.reply_text("Yui lihat-lihat dulu ya gambarnya... Hmm... 🤔")
-        await asyncio.sleep(2)
+        await asyncio.sleep(1.5)
+        await update.message.reply_text("Yui analisis dulu ya gambarnya... \nHmm... 🤔")
+        await asyncio.sleep(1.5)
 
         try:
             ai_reply = await asyncio.to_thread(
@@ -205,52 +222,34 @@ async def reply_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 user_input=caption,
                 image_path=image_path
             )
-            ai_reply += "\n\n*Semoga membantu yaa~ Kalau ada yang bingung, bilang aja sama akuu.. okay..* "
+            await send_long_message(update, ai_reply, parse_mode=ParseMode.HTML)
 
-            escaped = escape_markdown(ai_reply, version=2)
-            await update.message.reply_text(escaped, parse_mode=ParseMode.MARKDOWN_V2)
         except Exception as e:
-            error_msg = escape_markdown(f"⚠️ Yui gagal menghubungi AI: {str(e)}", version=2)
+            error_msg = escape_markdown(f"⚠️ Maaf ya, Yui gagal jawab karena error: {str(e)}", version=2)
             await update.message.reply_text(error_msg, parse_mode=ParseMode.MARKDOWN_V2)
         return
 
-    # Kalau bukan teks, abaikan
+    # === TEKS TANPA GAMBAR ===
     if not update.message.text:
         return
 
     user_message = update.message.text.strip()
-    print(f"[{name}] ({user_states.get(user_id, 'unknown')}): {user_message}")
     state = user_states.get(user_id, "active")
 
-    # === MODE CURHAT ===
-    if state == "curhat_ai":
-        await update.message.reply_chat_action(ChatAction.TYPING)
-        try:
-            ai_reply = await asyncio.to_thread(ask_ai, user_id=user_id, user_input=user_message)
-            escaped = escape_markdown(ai_reply, version=2)
-            await update.message.reply_text(escaped, parse_mode=ParseMode.MARKDOWN_V2)
-        except Exception as e:
-            error_msg = escape_markdown(f"⚠️ Yui gagal menghubungi AI: {str(e)}", version=2)
-            await update.message.reply_text(error_msg, parse_mode=ParseMode.MARKDOWN_V2)
-        return
+    await update.message.reply_chat_action(ChatAction.TYPING)
 
-    # === MODE AKTIF (biasa) ===
-    if state == "active":
-        greetings = ["hai", "halo", "hi", "yo", "assalamualaikum", "selamat pagi", "selamat siang", "selamat sore", "selamat malam"]
-        if any(greet in user_message.lower() for greet in greetings):
-            reply = generate_greeting(name)
-            await update.message.reply_text(reply)
-            return
+    try:
+        ai_reply = await asyncio.to_thread(
+            ask_ai,
+            user_id=user_id,
+            user_input=user_message
+        )
+        await send_long_message(update, ai_reply, parse_mode=ParseMode.HTML)
 
-        reply = f"*Kamu bilang:* \"{user_message}\"\n\nYui dengerin, kok. Cerita aja kalau ada yang pengen kamu bagi 😊"
-        await update.message.reply_text(reply, parse_mode=ParseMode.MARKDOWN)
-        return
+    except Exception as e:
+        error_msg = escape_markdown(f"⚠️ Maaf ya, Yui lagi error: {str(e)}", version=2)
+        await update.message.reply_text(error_msg, parse_mode=ParseMode.MARKDOWN_V2)
 
-    # === MODE STOP ===
-    if state == "stopped":
-        print(f"[{name}] sedang dalam mode 'stopped' dan tidak dibalas.")
-        return
-    
 # ======= Main =======
 def main():
     if TELEGRAM_TOKEN is None:
