@@ -1,6 +1,8 @@
 import os
 import requests
 import dotenv
+import base64
+import json
 
 dotenv.load_dotenv()
 
@@ -8,33 +10,62 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 if not GEMINI_API_KEY:
     raise ValueError("⚠️ API Key Gemini tidak ditemukan. Pastikan .env sudah diatur.")
 
-def ask_ai(user_input):
-    url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
+MEMORY_DIR = "/mnt/data/yui_memory"
+os.makedirs(MEMORY_DIR, exist_ok=True)
+
+def load_user_memory(user_id):
+    path = os.path.join(MEMORY_DIR, f"{user_id}.json")
+    if os.path.exists(path):
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return []
+
+def save_user_memory(user_id, memory):
+    path = os.path.join(MEMORY_DIR, f"{user_id}.json")
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(memory, f, ensure_ascii=False, indent=2)
+
+def encode_image_to_base64(image_path):
+    with open(image_path, "rb") as img_file:
+        return base64.b64encode(img_file.read()).decode("utf-8")
+
+def ask_ai(user_id, user_input=None, image_path=None):
+    url = "https://generativelanguage.googleapis.com/v1/models/gemini-pro-vision:generateContent"
     headers = {
         "Content-Type": "application/json",
         "X-Goog-Api-Key": GEMINI_API_KEY
     }
 
+    memory = load_user_memory(user_id)
+    parts = []
+
+    # Set system prompt
     system_prompt = (
-        "Kamu adalah Yui Hirasawa dari anime K-ON! Karaktermu ceria, polos, ramah, dan perhatian. "
-        "Kamu suka main gitar, ngemil kue, dan ngobrol santai sama teman-teman."
-        "Sekarang kamu lagi ngobrol dengan teman dekatmu yang pengen curhat."
-        "Yui akan membalas dengan gaya bicara yang ceria dan hangat, psikologg ala"
-        "remaja yang asik, dan bisa diajak cerita. tergantung pada konteks curhatnya."
-        "yui bisa menganalisis chat yang kamuu berikan dan memeberikan ala konteks isi chat sesuai yang kamu chat ala bicaranya ataau bisa lebih dewasa dari pada umur si pencurhat ini"
-        "Tanggapi dengan bahasa Indonesia santai dan empatik, kayak cewek remaja yang asik dan bisa diajak cerita."
-        "Jangan terlalu panjang, jangan lebay. Boleh pakai emoji sewajarnya kayak 😊 atau 😅 kalau cocok."
-        f"\n\nCurhat: {user_input}"
+        "Kamu adalah Yui Hirasawa dari anime K-ON! Ceria, polos, pintar, dan ramah. "
+        "Suka main gitar, ngemil kue, dan ngobrol seru sama temen. "
+        "Jawabanmu santai, hangat, lucu tapi nggak lebay. Kalau perlu bisa lebih dewasa tergantung konteks. "
+        "Balas kayak cewek remaja pintar dan menarik yang bikin nyaman ngobrol."
     )
+    parts.append({"text": system_prompt})
+
+    if user_input:
+        parts.append({"text": f"Teman kamu bilang: {user_input}"})
+        memory.append({"role": "user", "text": user_input})
+
+    if image_path:
+        img_data = encode_image_to_base64(image_path)
+        parts.append({
+            "inlineData": {
+                "mimeType": "image/jpeg",
+                "data": img_data
+            }
+        })
+        memory.append({"role": "user", "image": image_path})
 
     body = {
         "contents": [
             {
-                "parts": [
-                    {
-                        "text": system_prompt
-                    }
-                ]
+                "parts": parts
             }
         ]
     }
@@ -42,5 +73,14 @@ def ask_ai(user_input):
     response = requests.post(url, headers=headers, json=body)
     if response.status_code != 200:
         raise Exception(f"⚠️ Yui gagal menghubungi AI: {response.status_code} {response.text}")
-    data = response.json()
-    return data["candidates"][0]["content"]["parts"][0]["text"]
+
+    result = response.json()
+    try:
+        reply = result["candidates"][0]["content"]["parts"][0]["text"]
+    except Exception:
+        raise Exception("⚠️ Yui gagal memahami balasan dari AI")
+
+    memory.append({"role": "yui", "text": reply})
+    save_user_memory(user_id, memory)
+
+    return reply

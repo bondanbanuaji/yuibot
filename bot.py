@@ -105,13 +105,15 @@ async def pantun(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ======= /curhat =======
 async def curhat(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
+    user = update.effective_user
+    user_id = user.id
+    name = user.first_name or "teman"
     user_states[user_id] = "curhat_ai"
 
     balasan = (
-        "🫂 *Mode Curhat AI aktif!*\n\n"
-        "_Sekarang kamu bisa cerita apa aja, dan Yui (pakai AI) bakal bantu jawab sebisanya._\n"
-        "Ketik pesanmu~ ✨\n\n"
+        " *Mode Curhat Yui sudah nyala!*\n hehe\n\n"
+        "_Sekarang kamu bisa cerita apa aja, dan Yui bakal bantu jawab sebisanya._\n"
+        "Ketik pesanmu dan keluarkan unek-unek kamu disini~ \n\n"
         "Ketik /stop kalau ingin keluar dari mode ini."
     )
     await update.message.reply_text(balasan, parse_mode=ParseMode.MARKDOWN)
