@@ -207,4 +207,4 @@ def ask_ai(user_id, user_input=None, image_path=None, history=None):
         return reply
 
     except Exception as e:
-        return f"Eh? Yui bingung jawabnya gimana nih... 😳 ({e})"
+        return f"eh? yui bingung jawabnya gimana nih... 😳 ({e})"
