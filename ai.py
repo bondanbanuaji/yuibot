@@ -39,7 +39,7 @@ def ask_ai(user_id, user_input=None, image_path=None):
     memory = load_user_memory(user_id)
     parts = []
 
-    # System prompt
+    # Prompt sistem
     system_prompt = (
         "Kamu adalah Yui Hirasawa dari anime K-ON! Ceria, polos, pintar, dan ramah. "
         "Suka main gitar, ngemil kue, dan ngobrol seru sama temen. "
@@ -48,21 +48,53 @@ def ask_ai(user_id, user_input=None, image_path=None):
     )
     parts.append({"text": system_prompt})
 
-    # Tambah input user
+    # Tambahkan percakapan terakhir hingga MAX_PARTS
+    MAX_PARTS = 20
+    recent_context = []
+    for item in reversed(memory):
+        if len(recent_context) >= MAX_PARTS:
+            break
+        recent_context.insert(0, item)
+
+    for item in recent_context:
+        if item.get("role") == "user" and "text" in item:
+            parts.append({"text": item["text"]})
+        elif item.get("role") == "user" and "image" in item:
+            try:
+                img_data = encode_image_to_base64(item["image"])
+                parts.append({
+                    "inlineData": {
+                        "mimeType": "image/jpeg",
+                        "data": img_data
+                    }
+                })
+            except Exception:
+                continue
+        elif item.get("role") == "yui":
+            parts.append({"text": item["text"]})
+
+    # Tambahkan input baru dari user
     if user_input:
         parts.append({"text": user_input})
         memory.append({"role": "user", "text": user_input})
 
-    # Tambah gambar jika ada
     if image_path:
-        img_data = encode_image_to_base64(image_path)
-        parts.append({
-            "inlineData": {
-                "mimeType": "image/jpeg",
-                "data": img_data
-            }
-        })
-        memory.append({"role": "user", "image": image_path})
+        try:
+            img_data = encode_image_to_base64(image_path)
+            parts.append({
+                "inlineData": {
+                    "mimeType": "image/jpeg",
+                    "data": img_data
+                }
+            })
+            memory.append({"role": "user", "image": image_path})
+        except Exception:
+            pass
+
+    # ⛔️ Batas aman jumlah parts
+    MAX_ALLOWED_PARTS = 40
+    if len(parts) > MAX_ALLOWED_PARTS:
+        parts = parts[-MAX_ALLOWED_PARTS:]
 
     body = {
         "contents": [
