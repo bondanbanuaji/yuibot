@@ -16,6 +16,8 @@ from telegram.ext import (
     ContextTypes,
     filters
 )
+from datetime import datetime
+import pytz
 
 load_dotenv()
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
@@ -32,6 +34,67 @@ async def send_long_message(update, text, parse_mode=ParseMode.HTML):
         for i in range(0, len(text), MAX_LENGTH):
             chunk = text[i:i + MAX_LENGTH]
             await update.message.reply_text(chunk, parse_mode=parse_mode)
+
+def is_time_query(text):
+    kws = ["jam", "waktu", "what time", "waktu sekarang", "jam berapa"]
+    return any(kw in text.lower() for kw in kws)
+
+
+def get_world_times():
+    """Dapatkan waktu berbagai zona waktu dengan format yang rapi"""
+    zones = {
+        "🌏 Jakarta": "Asia/Jakarta",
+        "🗽 New York": "America/New_York",
+        "🇬🇧 London": "Europe/London",
+        "🗼 Tokyo": "Asia/Tokyo",
+        "🦘 Sydney": "Australia/Sydney",
+        "🇸🇬 Singapore": "Asia/Singapore",
+        "🇩🇪 Berlin": "Europe/Berlin",
+        "🇦🇪 Dubai": "Asia/Dubai"
+    }
+    
+    try:
+        now_utc = datetime.now(pytz.utc)
+        time_list = []
+        
+        for city, tz in zones.items():
+            try:
+                tz_obj = pytz.timezone(tz)
+                local_time = now_utc.astimezone(tz_obj)
+                time_str = local_time.strftime('%H:%M')
+                date_str = local_time.strftime('%a, %d %b %Y')
+                time_list.append(f"• {city}: {time_str} ({date_str})")
+            except Exception as e:
+                logging.error(f"Error processing timezone {tz}: {e}")
+                continue
+                
+        return "🕒 Waktu Dunia:\n" + "\n".join(time_list)
+        
+    except Exception as e:
+        logging.error(f"Error getting world times: {e}")
+        return "⚠️ Maaf, Yui lagi error cek waktu. Coba lagi nanti ya..."
+
+async def reply_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    user_id = user.id
+    
+    # Jangan proses jika dalam mode stopped
+    if user_states.get(user_id) == "stopped":
+        return
+
+    # Cek query waktu (kecuali dalam mode curhat)
+    if (update.message.text and 
+        user_states.get(user_id) != "curhat_ai" and 
+        is_time_query(update.message.text)):
+        
+        await update.message.reply_chat_action(ChatAction.TYPING)
+        times = get_world_times()
+        await update.message.reply_text(
+            times,
+            parse_mode=ParseMode.MARKDOWN,
+            reply_to_message_id=update.message.message_id
+        )
+        return
 
 # ======= /start =======
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -219,6 +282,14 @@ async def reply_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = user.id
     name = user.first_name or "kamu"
 
+    # Check time
+    if is_time_query(user_message):
+        times = get_world_times()
+        await update.message.reply_text(
+        f"Waktu sekarang nih:\n{times}", parse_mode=ParseMode.MARKDOWN
+        )
+        return
+
     # === FOTO ===
     if update.message.photo:
         image_file = await update.message.photo[-1].get_file()
@@ -270,8 +341,8 @@ async def reply_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         await send_long_message(update, ai_reply, parse_mode=ParseMode.HTML)
 
+    
     # Ganti bagian `except Exception as e:` menjadi:
-
     except Exception as e:
         fallback_msg = str(e)
         if "kelelahan" in fallback_msg:  # dari RateLimitError
