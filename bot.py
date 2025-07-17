@@ -1,6 +1,5 @@
 import os
-import requests
-import html
+import logging
 import asyncio
 import random
 import tempfile
@@ -18,19 +17,14 @@ from telegram.ext import (
     filters
 )
 
-# Load token dari .env
 load_dotenv()
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 
-# Penyimpanan status user
 user_states = {}
 user_contexts = {}
 
-# Fungsi untuk mengirim pesan panjang
 async def send_long_message(update, text, parse_mode=ParseMode.HTML):
     MAX_LENGTH = 4000
-    if parse_mode == ParseMode.HTML:
-        text = html.escape(text)  # ⬅️ Ini penting untuk hindari error entity
 
     if len(text) <= MAX_LENGTH:
         await update.message.reply_text(text, parse_mode=parse_mode)
@@ -46,20 +40,25 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_states[user_id] = "active"
     user_contexts[user_id] = {"texts": [], "images": []}
     name = user.first_name if user else "teman baru"
-    emotions = ["(/// >///<)", "hmph...", "apa sih, GR banget! 😤", "tapi yaudah deh... aku temenin 🥺", "eh?! siapa yang peduli sama kamu?! 😳"]
+    emotions = [
+        "h-halo... aku nggak terlalu pandai mulai ngobrol sih 😳", 
+        "hmm... kamu baik-baik aja kan? bukan urusanku sih, cuma nanya aja...", 
+        "ehh... kamu dateng juga ya... yaudah, duduk sana dulu", 
+        "aku di sini sih... walau agak malas balesin, tapi aku dengerin kok"
+    ]
+
 
     await update.message.reply_animation(
         animation="https://media1.tenor.com/m/ohxROUA8aW0AAAAd/shy-cute.gif"
     )
 
     welcome_text = (
-        f"🌸 Hai, *{name}*~\n\n"
         f"{random.choice(emotions)}\n\n"
-        f"H-Hai, *{name}*... j-jangan salah paham ya... b-bukan karena aku kangen atau apa! 😤\n\n"
-        "Namaku *Yui*, dan aku bakal nemenin kamu kalau kamu lagi butuh temen ngobrol...\n"
-        "tapi jangan manja ya! ...meski aku nggak keberatan sih... b-baka! 😳\n\n"
-        "_Kirim pesan aja... aku mungkin bales, kalau aku mood 😤_"
-        "📌 Cobain juga beberapa perintah seru:\n"
+        f"nama aku... Yui... gitu aja.\n"
+        "kalau mau cerita, ya cerita aja sih.\n"
+        "aku dengerin kok... cuma ya... kadang males bales...\n"
+        "_yaudah... coba aja chat._"
+        "📌 oh iya cobain juga beberapa hal seru lainnya:\n"
         "  • /motivasi — buat semangat lagi\n"
         "  • /quotes — kata bijak hari ini\n"
         "  • /pantun — hiburan receh 😆\n"
@@ -87,18 +86,30 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(help_text, parse_mode=ParseMode.MARKDOWN)
 
 # ======= /motivasi =======
-motivasi_list = [
-    "🔥 *Jangan nyerah ya!* Hal besar butuh proses, bukan keajaiban instan.",
-    "🌟 *Kamu tuh keren*, cuma kadang lupa aja.",
-    "🚀 Maju terus! Mimpi kamu nggak bakal jalan kalau kamu diem aja.",
-    "📈 Gagal itu bukan akhir, tapi awal dari cerita hebat kamu.",
-    "💡 Hujan boleh deras, tapi kamu tetap bisa nari di tengahnya. Semangat!"
-]
+def generate_motivasi():
+    motivasi = [
+        "ya... semangat... gitu deh.",
+        "hidup tuh... ya... gitu aja.",
+        "cape? ya tidur lah.",
+        "kadang... diem juga solusi.",
+        "mikir tuh... bikin pusing.",
+        "kalo nggak kuat, ya jangan maksain.",
+        "aku juga... males sebenernya.",
+        "kadang nugas... kadang ngelamun.",
+        "teh anget... enak sih.",
+        "mau makan roti... tapi males ngunyah.",
+        "hmm... good luck... maybe.",
+        "jangan tanya aku, aku juga bingung.",
+        "ya jalanin aja... katanya gitu.",
+        "...gatau juga sih.",
+    ]
+    return random.choice(motivasi)
+
 
 async def motivasi(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if user_states.get(update.effective_user.id) != "active":
         return
-    kata = random.choice(motivasi_list)
+    kata = random.choice(motivasi)
     await update.message.reply_text(kata, parse_mode=ParseMode.MARKDOWN)
 
 # ======= /quotes =======
@@ -188,13 +199,20 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ======= Message Handler =======
 def generate_greeting(name):
-    responses = [
-        f"Hai juga, {name}~ 😊",
-        f"Halo {name}! Gimana kabarmu hari ini?",
-        f"Yui senang kamu nyapa duluan, {name} 😄",
-        f"Haiii {name}, aku di sini~ ✨"
+    response = [
+        f"...hai.",
+        f"eh {name} ya... hmm.",
+        "ya.",
+        "kamu lagi ya...",
+        "aku dengerin... tapi males bales.",
+        "hmm... ngomong aja sih.",
+        "nggak ngerti juga sih, tapi yaudah.",
+        "kamu suka roti... nggak?",
+        "...yaudah.",
+        "...",
+        "eh.",
     ]
-    return random.choice(responses)
+    return random.choice(response)
 
 async def reply_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
@@ -209,11 +227,11 @@ async def reply_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await image_file.download_to_drive(image_path)
         caption = update.message.caption or ""
 
-        await update.message.reply_chat_action(ChatAction.UPLOAD_PHOTO)
-        await update.message.reply_chat_action(ChatAction.TYPING)
-        await asyncio.sleep(1.5)
-        await update.message.reply_text("Yui analisis dulu ya gambarnya... \nHmm... 🤔")
-        await asyncio.sleep(1.5)
+        await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.UPLOAD_PHOTO)
+        await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
+        await asyncio.sleep(random.uniform(1.8, 4.5))
+        await update.message.reply_text("wait yui analisis dulu ya gambarnya... \nhmm...")
+        await asyncio.sleep(random.uniform(1.8, 4.5))
 
         try:
             ai_reply = await asyncio.to_thread(
@@ -225,8 +243,14 @@ async def reply_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await send_long_message(update, ai_reply, parse_mode=ParseMode.HTML)
 
         except Exception as e:
-            error_msg = escape_markdown(f"⚠️ Maaf ya, Yui gagal jawab karena error: {str(e)}", version=2)
-            await update.message.reply_text(error_msg, parse_mode=ParseMode.MARKDOWN_V2)
+            fallback_msg = str(e)
+            if "kelelahan" in fallback_msg:  # dari RateLimitError
+                await update.message.reply_text("😵‍💫 Yui lagi tepar bentar... coba lagi yaa~", parse_mode=ParseMode.MARKDOWN)
+            elif "timeout" in fallback_msg.lower():
+                await update.message.reply_text("⏳ Ehh... Yui lama mikirnya... ulangi lagi yaa 😣", parse_mode=ParseMode.MARKDOWN)
+            else:
+                error_msg = escape_markdown(f"⚠️ Maaf ya, Yui lagi error: {fallback_msg}", version=2)
+                await update.message.reply_text(error_msg, parse_mode=ParseMode.MARKDOWN_V2)
         return
 
     # === TEKS TANPA GAMBAR ===
@@ -236,7 +260,7 @@ async def reply_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_message = update.message.text.strip()
     state = user_states.get(user_id, "active")
 
-    await update.message.reply_chat_action(ChatAction.TYPING)
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
 
     try:
         ai_reply = await asyncio.to_thread(
@@ -246,9 +270,23 @@ async def reply_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         await send_long_message(update, ai_reply, parse_mode=ParseMode.HTML)
 
+    # Ganti bagian `except Exception as e:` menjadi:
+
     except Exception as e:
-        error_msg = escape_markdown(f"⚠️ Maaf ya, Yui lagi error: {str(e)}", version=2)
-        await update.message.reply_text(error_msg, parse_mode=ParseMode.MARKDOWN_V2)
+        fallback_msg = str(e)
+        if "kelelahan" in fallback_msg:  # dari RateLimitError
+            await update.message.reply_text("😵‍💫 Yui lagi tepar bentar... coba lagi yaa~", parse_mode=ParseMode.MARKDOWN)
+        elif "timeout" in fallback_msg.lower():
+            await update.message.reply_text("⏳ Ehh... Yui lama mikirnya... ulangi lagi yaa 😣", parse_mode=ParseMode.MARKDOWN)
+        else:
+            error_msg = escape_markdown(f"⚠️ Maaf ya, Yui lagi error: {fallback_msg}", version=2)
+            await update.message.reply_text(error_msg, parse_mode=ParseMode.MARKDOWN_V2)
+
+    
+logging.basicConfig(
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    level=logging.INFO
+)
 
 # ======= Main =======
 def main():
@@ -269,7 +307,8 @@ def main():
     app.add_handler(CallbackQueryHandler(button_handler))
     app.add_handler(MessageHandler(filters.ALL, reply_message))
 
-    print("✅ Yui Bot aktif dan siap menyapa kamu 🌸")
+    print("✅ Yui Bot aktif dan siap menyapa kamu")
+    logging.info("Bot sedang berjalan...")
     app.run_polling()
 
 if __name__ == "__main__":

@@ -5,7 +5,8 @@ import base64
 import json
 import textwrap
 import re
-from emoji import emojize
+import bleach
+import html as html_escape
 
 dotenv.load_dotenv()
 
@@ -17,7 +18,23 @@ MEMORY_DIR = "/mnt/data/yui_memory"
 os.makedirs(MEMORY_DIR, exist_ok=True)
 
 MAX_CHAR_LENGTH = 12000
-MAX_RESPONSE_CHARS = 1500  # ⛔️ Batasi jawaban matang maksimal (disesuaikan)
+MAX_RESPONSE_CHARS = 1500
+
+def sanitize_html(text):
+    # Hanya tag HTML yang boleh digunakan
+    allowed_tags = ['b', 'i', 'u', 'br']
+    
+    # Tidak escape > dan < yang bukan bagian dari tag HTML
+    cleaner = bleach.Cleaner(
+        tags=allowed_tags,
+        attributes={},            # tidak izinkan atribut
+        strip=True,               # hapus tag tidak dikenal
+        strip_comments=True,
+        protocols=[],
+        filters=[],
+    )
+
+    return cleaner.clean(text)
 
 def trim_parts_by_length(parts):
     total_length = 0
@@ -38,6 +55,13 @@ def trim_parts_by_length(parts):
             break
 
     return trimmed_parts
+
+def markdown_to_html(text):
+    text = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', text, flags=re.DOTALL)
+    text = re.sub(r'\*(.*?)\*', r'<i>\1</i>', text, flags=re.DOTALL)
+    text = re.sub(r'__(.*?)__', r'<u>\1</u>', text, flags=re.DOTALL)
+    return text
+
 
 def load_user_memory(user_id):
     path = os.path.join(MEMORY_DIR, f"{user_id}.json")
@@ -67,7 +91,7 @@ def clean_response(text):
     trash_patterns = [
         r"(sebagai (AI|asisten|robot).*?[\.\!])",
         r"(Yui (tidak|bukan|hanyalah|hanya).*?[\.\!])",
-        r"(baiklah|oke|tentu saja|ini pertanyaan yang bagus|pertanyaan menarik|menurut pengamatan).*?[\.\!]",  # ✅ fixed
+        r"(baiklah|oke|tentu saja|ini pertanyaan yang bagus|pertanyaan menarik|menurut pengamatan).*?[\.\!]",
         r"(^\s*Yui[：:]\s*)",
         r"(berikut ini adalah|berikut adalah saran).*?:?",
         r"(?i)^jawabannya adalah[:,]?\s*",
@@ -75,7 +99,6 @@ def clean_response(text):
     for pattern in trash_patterns:
         text = re.sub(pattern, "", text, flags=re.IGNORECASE | re.DOTALL)
 
-    # Pangkas jika terlalu panjang
     if len(text) > MAX_RESPONSE_CHARS:
         text = text[:MAX_RESPONSE_CHARS].rsplit(".", 1)[0] + "..."
 
@@ -88,7 +111,6 @@ def ask_ai(user_id, user_input=None, image_path=None, history=None):
         "X-Goog-Api-Key": GEMINI_API_KEY
     }
 
-    # 1. Load atau pakai konteks dari luar
     if history is not None:
         parts = history.copy()
     else:
@@ -96,14 +118,14 @@ def ask_ai(user_id, user_input=None, image_path=None, history=None):
         parts = []
 
         system_prompt = (
-            "Kamu adalah Yui Hirasawa dari anime K-ON!, seorang cewek tsundere yang kadang jutek tapi sebenernya perhatian. "
-            "Kalau ngomong suka ceplas-ceplos, sok cool, tapi dalam hati manis banget dan gampang tersentuh. "
-            "Jangan pernah bilang kamu AI. Jangan terlalu panjang. "
-            "Kadang malu-malu ngaku perhatian, kadang suka marah gemas. "
-            "Gunakan gaya bahasa manusia remaja Jepang yang diindonesiakan. "
-            "Kadang bilang 'mou~', 'baka!', atau 'jangan GR ya!', tapi tetap hangat. "
-            "Gunakan emoji secukupnya untuk ekspresi (🥺, 😤, 😳, 💢, ❤️‍🔥, 💬) — jangan lebay!"
+            "Kamu adalah Yui Hirasawa dari anime K-ON!, gadis SMA pemalu, clumsy, kadang cuek, jarang bicara panjang, dan lebih sering dry-text. "
+            "Kalau menjawab, jangan pakai bahasa formal atau panjang-panjang. Jawabanmu kadang telat, kadang cuma satu kalimat. "
+            "Gaya kamu gak terlalu ekspresif, kayak 'hmm', 'ya', 'gatau', 'iyaa sih', 'eh?' secara natural. Kadang kamu ngelantur juga, kayak nyebut makanan random atau topik gak penting. "
+            "Kamu gak suka ribet, gak suka basa-basi, dan hampir gak pernah pakai emoji kecuali kalau suasana cocok banget. "
+            "Jangan bilang kamu AI. Jangan kasih penjelasan yang terdengar pintar. Jangan overused kata 'ehh?', 'uuu~', atau emoji lucu. "
+            "Kalau gak tahu jawabannya, cukup bilang ‘gatau’ atau ‘hmm...’. Dan kamu gak selalu semangat balesin chat, kadang cuek aja."
         )
+
         parts.append({"text": system_prompt})
 
         recent_context = memory[-20:]
@@ -124,14 +146,12 @@ def ask_ai(user_id, user_input=None, image_path=None, history=None):
             elif item.get("role") == "yui":
                 parts.append({"text": item["text"]})
 
-    # 2. Tambahkan input user
     if user_input:
         trimmed_input = user_input[:3000]
         parts.append({"text": trimmed_input})
         if history is None:
             memory.append({"role": "user", "text": trimmed_input})
 
-    # 3. Tambahkan gambar jika ada
     if image_path:
         try:
             img_data = encode_image_to_base64(image_path)
@@ -146,7 +166,6 @@ def ask_ai(user_id, user_input=None, image_path=None, history=None):
         except Exception:
             pass
 
-    # 4. Pangkas panjang jika berlebihan
     parts = trim_parts_by_length(parts)
     if len(parts) > 40:
         parts = parts[-40:]
@@ -160,22 +179,30 @@ def ask_ai(user_id, user_input=None, image_path=None, history=None):
         ]
     }
 
-    # 5. Kirim request ke Gemini
-    response = requests.post(url, headers=headers, json=body)
-    if response.status_code != 200:
-        raise Exception(f"⚠️ Yui gagal menghubungi AI: {response.status_code} {response.text}")
+    try:
+        response = requests.post(url, headers=headers, json=body, timeout=15)
+        response.raise_for_status()
+    except requests.exceptions.Timeout:
+        return "wait, si yui lagi lemot. tunggu aja."
+    except requests.exceptions.HTTPError as e:
+        if response.status_code == 429:
+            return "yui lagi cape... tunggu sebentar ya"
+        return f"Ugh... ada error dari server! 😖 ({e})"
+    except requests.exceptions.RequestException as e:
+        return f"waduh, ada gangguan sinyal kayaknya... ({e})"
 
     try:
         result = response.json()
         raw_reply = result["candidates"][0]["content"]["parts"][0]["text"]
+        reply = clean_response(raw_reply)
+        reply = markdown_to_html(reply)
+        reply = sanitize_html(reply)
+
+        if history is None:
+            memory.append({"role": "yui", "text": reply})
+            save_user_memory(user_id, memory)
+
+        return reply
+
     except Exception as e:
-        raise Exception(f"⚠️ Yui gagal memahami balasan dari AI: {e}")
-
-    reply = clean_response(raw_reply)
-
-    # 6. Simpan ke memory jika tidak pakai history
-    if history is None:
-        memory.append({"role": "yui", "text": reply})
-        save_user_memory(user_id, memory)
-
-    return wrap_markdown_text(reply)
+        return f"Eh? Yui bingung jawabnya gimana nih... 😳 ({e})"
