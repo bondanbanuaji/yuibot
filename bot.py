@@ -245,11 +245,11 @@ async def reply_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             fallback_msg = str(e)
             if "kelelahan" in fallback_msg:  # dari RateLimitError
-                await update.message.reply_text("😵‍💫 Yui lagi tepar bentar... coba lagi yaa~", parse_mode=ParseMode.MARKDOWN)
+                await update.message.reply_text("😵‍💫 yui lagi tepar bentar... coba lagi yaa~", parse_mode=ParseMode.MARKDOWN)
             elif "timeout" in fallback_msg.lower():
-                await update.message.reply_text("⏳ Ehh... Yui lama mikirnya... ulangi lagi yaa 😣", parse_mode=ParseMode.MARKDOWN)
+                await update.message.reply_text("⏳ ehh... yui lama mikirnya... ulangi lagi yaa 😣", parse_mode=ParseMode.MARKDOWN)
             else:
-                error_msg = escape_markdown(f"⚠️ Maaf ya, Yui lagi error: {fallback_msg}", version=2)
+                error_msg = escape_markdown(f"⚠️ maaf ya, yui lagi error: {fallback_msg}", version=2)
                 await update.message.reply_text(error_msg, parse_mode=ParseMode.MARKDOWN_V2)
         return
 
