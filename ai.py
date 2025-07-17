@@ -102,7 +102,8 @@ def clean_response(text):
     if len(text) > MAX_RESPONSE_CHARS:
         text = text[:MAX_RESPONSE_CHARS].rsplit(".", 1)[0] + "..."
 
-    return text.strip()
+    text = text.strip()
+    return text
 
 def ask_ai(user_id, user_input=None, image_path=None, history=None):
     url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
@@ -187,7 +188,7 @@ def ask_ai(user_id, user_input=None, image_path=None, history=None):
     except requests.exceptions.HTTPError as e:
         if response.status_code == 429:
             return "yui lagi cape... tunggu sebentar ya"
-        return f"Ugh... ada error dari server! 😖 ({e})"
+        return f"ugh... ada error dari server, \ntunggu bentar ({e})"
     except requests.exceptions.RequestException as e:
         return f"waduh, ada gangguan sinyal kayaknya... ({e})"
 
@@ -197,6 +198,7 @@ def ask_ai(user_id, user_input=None, image_path=None, history=None):
         reply = clean_response(raw_reply)
         reply = markdown_to_html(reply)
         reply = sanitize_html(reply)
+        reply = reply.lower()
 
         if history is None:
             memory.append({"role": "yui", "text": reply})
