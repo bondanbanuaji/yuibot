@@ -1,5 +1,8 @@
 import os
+import requests
+import asyncio
 import random
+from ai import ask_ai
 from dotenv import load_dotenv
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.constants import ParseMode
@@ -102,11 +105,14 @@ async def pantun(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ======= /curhat =======
 async def curhat(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if user_states.get(update.effective_user.id) != "active":
-        return
+    user_id = update.effective_user.id
+    user_states[user_id] = "curhat_ai"
+
     balasan = (
-        "🫂 Cerita aja, aku di sini kok.\n"
-        "Kadang cukup didengerin aja udah bikin lega. Gausah ragu, aku gak bakal nge-judge apa pun yang kamu rasa 💗"
+        "🫂 *Mode Curhat AI aktif!*\n\n"
+        "_Sekarang kamu bisa cerita apa aja, dan Yui (pakai AI) bakal bantu jawab sebisanya._\n"
+        "Ketik pesanmu~ ✨\n\n"
+        "Ketik /stop kalau ingin keluar dari mode ini."
     )
     await update.message.reply_text(balasan, parse_mode=ParseMode.MARKDOWN)
 
@@ -160,13 +166,31 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ======= Balasan Pesan Biasa =======
 async def reply_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
-    if user_states.get(user.id) != "active":
-        return
-
+    user_id = user.id
     name = user.first_name if user else "kamu"
     user_message = update.message.text
+
     print(f"[{name}] mengetik: {user_message}")
 
+    state = user_states.get(user_id, "active")
+
+    if state == "curhat_ai":
+        print(f"[{name}] (curhat AI): {user_message}")
+        await update.message.reply_chat_action("typing")
+        
+        try:
+            ai_reply = await asyncio.to_thread(ask_ai, user_message)
+        except Exception as e:
+            ai_reply = f"⚠️ Yui gagal menghubungi AI: {str(e)}"
+        
+        await update.message.reply_text(ai_reply)
+        return
+
+
+    if state != "active":
+        return
+
+    # Default balasan normal
     reply = f"kamu bilang:* \"{user_message}\"*\n\nYui dengerin, loh~ 😊"
     await update.message.reply_text(reply, parse_mode=ParseMode.MARKDOWN)
 
