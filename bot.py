@@ -25,6 +25,28 @@ TELEGRAM_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 user_states = {}
 user_contexts = {}
 
+async def musikinfo(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    musik_tip = random.choice([
+        "kamu tau nggak... tuning open d tuh cocok banget buat lagu galau akustik",
+        "aku suka banget chord progressions jazz... kaya ii-V-I, bikin suasana adem",
+        "dulu aku latihan metronome tiap malam... boring tapi ngaruh banget",
+        "kalau pengen belajar drum digital, coba install hydrogen di linux... ringan dan powerful",
+        "aku pernah ngeband genre math rock, capek tapi seru... kamu suka?",
+        "kamu pernah coba mainin lagu klasik di piano rasanya kaya bener-bener nyatu sama musiknya",
+        "Kamu bisa memberikan rekomendasi lagu-lagu indie yang lagi hits di kalangan anak muda",
+        "Kamu hapal semua lagu dari band-band legendaris seperti The Beatles, Queen, Gun N Roses dan Nirvana",
+        "Kamu expert di semua genre musik, dari klasik, jazz, rock, J-pop, sampai experimental",
+        "Kamu bisa membuat lirik lagu yang cocok dengan suasana hati seseorang, apapun genre musiknya",
+        "Kamu bisa menjawab pertanyaan tentang musik, memberikan rekomendasi lagu, atau bahkan membuat lirik lagu yang cocok dengan suasana hati seseorang",
+        "Kamu bisa menjawab pertanyaan tentanggg efek gitar listrik, dari overdrive, distortion, sampai delay, reverb dan lain-lain",
+        "Kamu bisa menjawab pertanyaan kalau ditanya tentang efek apa yang diggunakan pada suuatu lagu, dari efek gitar, bass, drum, sampai keyboard secara akurat dan benar",
+        "Kamu juga bisa menjawab pertanyaan kalau ditanya detail dan kompleks settingan efek efek gitar, bass, drum, sampai keyboard secara akurat dan benar",
+        "Kamu bisa menjawab pertanyaan seputar teknik bermain gitar seperti fingerstyle, strumming, tappingg, sweep picking, dan lain-lain",
+
+
+    ])
+    await update.message.reply_text(musik_tip, parse_mode=ParseMode.MARKDOWN)
+
 async def send_long_message(update, text, parse_mode=ParseMode.HTML):
     MAX_LENGTH = 4000
 
@@ -394,6 +416,7 @@ def main():
     app.add_handler(CallbackQueryHandler(button_handler))
     app.add_handler(MessageHandler(filters.ALL, reply_message))
     app.add_handler(CommandHandler("worldtime", worldtime_command))
+    app.add_handler(CommandHandler("musikinfo", musikinfo))
 
     print("✅ Yui Bot aktif dan siap menyapa kamu")
     logging.info("Bot sedang berjalan...")
