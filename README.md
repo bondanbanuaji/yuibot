@@ -1,7 +1,7 @@
 
 # 🧠 Yui-Bot (V-1.0)
 
-Yui adalah chatbot Telegram dengan kepribadian **tsundere**, **dry-text**, dan sedikit pemalu. Terinspirasi dari karakter **Yui Hirasawa (K-ON!)**, bot ini dirancang untuk merespons pengguna dengan gaya manusiawi, tidak sok AI, dan cocok buat tempat curhat diam-diam.
+Yui adalah chatbot Telegram dengan kepribadian **tsundere**, **dry-text**, dan sedikit pemalu. Terinspirasi dari karakter **Yui Hirasawa (K-ON!)**, bot ini dirancang untuk merespons pengguna dengan gaya konsep reasoning seperti wanita idamanmu dan cocok dijadiin tempat pelarian kamuu, hehe.
 
 ## ✨ Fitur Utama
 
