@@ -63,15 +63,18 @@ def get_time_hint():
         "Jakarta": "Asia/Jakarta",
         "Tokyo": "Asia/Tokyo",
         "London": "Europe/London",
-        "New York": "America/New_York"
+        "New York": "America/New_York",
+        "Berlin": "Europe/Berlin",
+        "Sydney": "Australia/Sydney"
     }
     now_utc = datetime.now(pytz.utc)
     hint = []
     for city, zone in zones.items():
         local_time = now_utc.astimezone(pytz.timezone(zone))
-        time_str = local_time.strftime('%H:%M')
+        time_str = local_time.strftime('%H:%M on %A, %d %B %Y')
         hint.append(f"{city}: {time_str}")
-    return "Current world time (for reasoning): " + ", ".join(hint)
+    return "Useful time context for reasoning: " + "; ".join(hint)
+
 
 def markdown_to_html(text):
     text = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', text, flags=re.DOTALL)

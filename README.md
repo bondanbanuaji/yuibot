@@ -7,13 +7,14 @@ Yui adalah chatbot Telegram dengan kepribadian **tsundere**, **dry-text**, dan s
 
 | Fitur | Deskripsi |
 |-------|-----------|
-| 🧍‍♀️ Karakter Tsundere | Bot berbicara cuek, dry-text, kadang canggung dan malu-malu |
+| 🧍‍♀️ Karakter & Sifat | Bot berbicara cuek, dry-text, kadang canggung dan malu-malu |
 | 💬 /curhat | Mode spesial untuk curhat dengan tone lebih personal dan lowercase |
 | 🧠 Memory | Bot mengingat histori chat pengguna, auto-trim jika terlalu panjang |
 | 🌈 Random Fun | Command seperti `/motivasi`, `/quotes`, `/pantun` |
 | 🖼️ Kirim Gambar | Bisa membalas atau merespons dengan gambar/foto juga |
 | 🧹 /clearchat | Hapus memory chat dengan konfirmasi tombol inline |
 | 🤖 Bebas AI Vibes | Respons dibersihkan dari ciri khas AI, seperti kata “Sebagai AI…” |
+| 🕒 Deteksi Waktu Secara Akrat | Yui dapat mendeteksi pertanyaan tentang waktu dan menjawab dengan informasi waktu saat ini di lokasi tersebut secara real-time. |
 
 ---
 

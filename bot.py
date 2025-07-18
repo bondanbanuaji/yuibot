@@ -40,16 +40,24 @@ def is_time_query(text):
     return any(kw in text.lower() for kw in kws)
 
 def get_world_times():
-    """Dapatkan waktu berbagai zona waktu dengan format yang rapi"""
     zones = {
-        "🌏 Jakarta": "Asia/Jakarta",
-        "🗽 New York": "America/New_York",
-        "🇬🇧 London": "Europe/London",
-        "🗼 Tokyo": "Asia/Tokyo",
-        "🦘 Sydney": "Australia/Sydney",
+        "🇮🇩 Jakarta": "Asia/Jakarta",
+        "🇯🇵 Tokyo": "Asia/Tokyo",
+        "🇰🇷 Seoul": "Asia/Seoul",
+        "🇨🇳 Beijing": "Asia/Shanghai",
         "🇸🇬 Singapore": "Asia/Singapore",
+        "🇮🇳 New Delhi": "Asia/Kolkata",
+        "🇦🇪 Dubai": "Asia/Dubai",
+        "🇿🇦 Cape Town": "Africa/Johannesburg",
+        "🇬🇧 London": "Europe/London",
         "🇩🇪 Berlin": "Europe/Berlin",
-        "🇦🇪 Dubai": "Asia/Dubai"
+        "🇫🇷 Paris": "Europe/Paris",
+        "🇧🇷 São Paulo": "America/Sao_Paulo",
+        "🇺🇸 New York": "America/New_York",
+        "🇺🇸 Los Angeles": "America/Los_Angeles",
+        "🇲🇽 Mexico City": "America/Mexico_City",
+        "🇦🇺 Sydney": "Australia/Sydney",
+        "🇳🇿 Wellington": "Pacific/Auckland"
     }
     
     try:
@@ -70,8 +78,8 @@ def get_world_times():
         return "🕒 Waktu Dunia:\n" + "\n".join(time_list)
         
     except Exception as e:
-        logging.error(f"Error getting world times: {e}")
-        return "⚠️ Maaf, Yui lagi error cek waktu. Coba lagi nanti ya..."
+        logging.error(f"error getting world times: {e}")
+        return "⚠️ maaf, yui lagi error cek waktu. coba lagi nanti ya..."
 
 async def reply_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
@@ -220,7 +228,7 @@ async def stop(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     user_states[user_id] = "stopped"
     user_contexts.pop(user_id, None)
-    await update.message.reply_text("🚫 Yui bakal diam dulu ya.\nKalau kamu butuh aku lagi, cukup kirim /start 🌸")
+    await update.message.reply_text("🚫 yui bakal diam dulu ya.\nkalau kamu pengen chat aku lagi, cukup kirim /start ")
 
 # ======= /clearchat =======
 async def clearchat(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -275,6 +283,11 @@ def generate_greeting(name):
         "eh.",
     ]
     return random.choice(response)
+
+async def worldtime_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_chat_action(ChatAction.TYPING)
+    waktu = get_world_times()
+    await send_long_message(update, waktu, parse_mode=ParseMode.MARKDOWN)
 
 async def reply_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
@@ -380,6 +393,7 @@ def main():
     app.add_handler(CommandHandler("clearchat", clearchat))
     app.add_handler(CallbackQueryHandler(button_handler))
     app.add_handler(MessageHandler(filters.ALL, reply_message))
+    app.add_handler(CommandHandler("worldtime", worldtime_command))
 
     print("✅ Yui Bot aktif dan siap menyapa kamu")
     logging.info("Bot sedang berjalan...")
