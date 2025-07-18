@@ -48,7 +48,12 @@ async def musikinfo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(musik_tip, parse_mode=ParseMode.MARKDOWN)
 
 async def send_long_message(update, text, parse_mode=ParseMode.HTML):
-    MAX_LENGTH = 4000
+    paragraphs = [p.strip() for p in text.split("\n\n") if p.strip()]
+    for paragraph in paragraphs:
+            await update.message.reply_text(paragraph, parse_mode=parse_mode)
+            await asyncio.sleep(1.6, 2.8)
+
+    MAX_LENGTH = 3000
 
     if len(text) <= MAX_LENGTH:
         await update.message.reply_text(text, parse_mode=parse_mode)
@@ -318,8 +323,8 @@ async def reply_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_message = update.message.text.strip()
 
     # Check time
-    if is_time_query(user_message):
-    # biarin yui mikir dan kasih reasoning
+    if user_states.get(user_id) != "curhat_ai" and is_time_query(user_message):
+    # reasoning
         ai_reply = await asyncio.to_thread(
             ask_ai,
             user_id=user_id,
