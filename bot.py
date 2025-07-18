@@ -281,6 +281,7 @@ async def reply_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     user_id = user.id
     name = user.first_name or "kamu"
+    user_message = update.message.text.strip()
 
     # Check time
     if is_time_query(user_message):
@@ -328,7 +329,7 @@ async def reply_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message.text:
         return
 
-    user_message = update.message.text.strip()
+    
     state = user_states.get(user_id, "active")
 
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
