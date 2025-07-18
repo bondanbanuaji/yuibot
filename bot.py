@@ -3,6 +3,7 @@ import logging
 import asyncio
 import random
 import tempfile
+import re
 from telegram.helpers import escape_markdown
 from telegram.constants import ChatAction, ParseMode
 from ai import ask_ai
@@ -47,20 +48,35 @@ async def musikinfo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ])
     await update.message.reply_text(musik_tip, parse_mode=ParseMode.MARKDOWN)
 
+def split_into_bubbles(text):
+    # Split berdasarkan 1-2 kalimat per bubble
+    sentences = re.split(r'(?<=[.!?])\s+', text.strip())
+    bubbles = []
+    temp = ""
+
+    for sentence in sentences:
+        if len(temp + " " + sentence) < 300:  # Maks bubble 300 char
+            temp = (temp + " " + sentence).strip()
+        else:
+            if temp:
+                bubbles.append(temp.strip())
+            temp = sentence
+
+    if temp:
+        bubbles.append(temp.strip())
+
+    return bubbles
+
 async def send_long_message(update, text, parse_mode=ParseMode.HTML):
-    paragraphs = [p.strip() for p in text.split("\n\n") if p.strip()]
-    for paragraph in paragraphs:
-            await update.message.reply_text(paragraph, parse_mode=parse_mode)
-            await asyncio.sleep(1.6, 2.8)
+    bubbles = split_into_bubbles(text)
 
-    MAX_LENGTH = 3000
+    for bubble in bubbles:
+        await update.message.chat.send_action(action=ChatAction.TYPING)
 
-    if len(text) <= MAX_LENGTH:
-        await update.message.reply_text(text, parse_mode=parse_mode)
-    else:
-        for i in range(0, len(text), MAX_LENGTH):
-            chunk = text[i:i + MAX_LENGTH]
-            await update.message.reply_text(chunk, parse_mode=parse_mode)
+        delay = min(max(len(bubble) / 200, 1.0), 4.0)  # antara 1 - 4 detik
+        await asyncio.sleep(delay)
+
+        await update.message.reply_text(bubble, parse_mode=parse_mode)
 
 def is_time_query(text):
     kws = ["jam", "waktu", "what time", "waktu sekarang", "jam berapa"]
@@ -112,11 +128,9 @@ async def reply_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     user_id = user.id
     
-    # Jangan proses jika dalam mode stopped
     if user_states.get(user_id) == "stopped":
         return
 
-    # Cek query waktu (kecuali dalam mode curhat)
     if (update.message.text and 
         user_states.get(user_id) != "curhat_ai" and 
         is_time_query(update.message.text)):
@@ -319,18 +333,19 @@ async def worldtime_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def reply_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     user_id = user.id
-    name = user.first_name or "kamu"
-    user_message = update.message.text.strip()
+    
+    # Jangan proses jika dalam mode stopped
+    if user_states.get(user_id) == "stopped":
+        return
 
-    # Check time
-    if user_states.get(user_id) != "curhat_ai" and is_time_query(user_message):
-    # reasoning
-        ai_reply = await asyncio.to_thread(
-            ask_ai,
-            user_id=user_id,
-            user_input=user_message
-        )
-        await send_long_message(update, ai_reply, parse_mode=ParseMode.HTML)
+    # Cek query waktu (kecuali dalam mode curhat)
+    if (update.message.text and 
+        user_states.get(user_id) != "curhat_ai" and 
+        is_time_query(update.message.text)):
+        
+        await update.message.reply_chat_action(ChatAction.TYPING)
+        times = get_world_times()
+        await send_long_message(update, times, parse_mode=ParseMode.MARKDOWN)
         return
 
     # === FOTO ===
@@ -358,7 +373,7 @@ async def reply_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         except Exception as e:
             fallback_msg = str(e)
-            if "kelelahan" in fallback_msg:  # dari RateLimitError
+            if "kelelahan" in fallback_msg:
                 await update.message.reply_text("😵‍💫 yui lagi tepar bentar... coba lagi yaa~", parse_mode=ParseMode.MARKDOWN)
             elif "timeout" in fallback_msg.lower():
                 await update.message.reply_text("⏳ ehh... yui lama mikirnya... ulangi lagi yaa 😣", parse_mode=ParseMode.MARKDOWN)
@@ -371,7 +386,6 @@ async def reply_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message.text:
         return
 
-    
     state = user_states.get(user_id, "active")
 
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
@@ -380,22 +394,19 @@ async def reply_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ai_reply = await asyncio.to_thread(
             ask_ai,
             user_id=user_id,
-            user_input=user_message
+            user_input=update.message.text
         )
         await send_long_message(update, ai_reply, parse_mode=ParseMode.HTML)
 
-    
-    # Ganti bagian `except Exception as e:` menjadi:
     except Exception as e:
         fallback_msg = str(e)
-        if "kelelahan" in fallback_msg:  # dari RateLimitError
+        if "kelelahan" in fallback_msg:
             await update.message.reply_text("😵‍💫 Yui lagi tepar bentar... coba lagi yaa~", parse_mode=ParseMode.MARKDOWN)
         elif "timeout" in fallback_msg.lower():
             await update.message.reply_text("⏳ Ehh... Yui lama mikirnya... ulangi lagi yaa 😣", parse_mode=ParseMode.MARKDOWN)
         else:
             error_msg = escape_markdown(f"⚠️ Maaf ya, Yui lagi error: {fallback_msg}", version=2)
             await update.message.reply_text(error_msg, parse_mode=ParseMode.MARKDOWN_V2)
-
     
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',

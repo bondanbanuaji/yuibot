@@ -116,8 +116,6 @@ def clean_response(text):
         r"(berikut ini adalah|berikut adalah saran).*?:?",
         r"(?i)^jawabannya adalah[:,]?\s*",
         r"(🥰|😄|🤗|✨|🔥|🌟|❗|😊|💖|🌸|❤️|🥺|😂|😆|😍)",
-        r"(\n){3,}",
-        r"(?!\n)([.!?])\s*(?=[A-Z])"
     ]
     for pattern in trash_patterns:
         text = re.sub(pattern, "", text, flags=re.IGNORECASE | re.DOTALL)
@@ -164,7 +162,7 @@ def ask_ai(user_id, user_input=None, image_path=None, history=None):
 
         parts.append({"text": system_prompt})
 
-        recent_context = memory[-50:]
+        recent_context = memory[-20:]
         for item in recent_context:
             if item.get("role") == "user" and "text" in item:
                 parts.append({"text": item["text"]})
@@ -242,6 +240,9 @@ def ask_ai(user_id, user_input=None, image_path=None, history=None):
         if reply.endswith(".") and not reply.endswith("..."):
             reply = reply[:-1]
 
+        if not reply.strip():
+            return "..."
+        
         return reply
 
     except Exception as e:
