@@ -39,7 +39,6 @@ def is_time_query(text):
     kws = ["jam", "waktu", "what time", "waktu sekarang", "jam berapa"]
     return any(kw in text.lower() for kw in kws)
 
-
 def get_world_times():
     """Dapatkan waktu berbagai zona waktu dengan format yang rapi"""
     zones = {
@@ -285,10 +284,13 @@ async def reply_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Check time
     if is_time_query(user_message):
-        times = get_world_times()
-        await update.message.reply_text(
-        f"Waktu sekarang nih:\n{times}", parse_mode=ParseMode.MARKDOWN
+    # biarin yui mikir dan kasih reasoning
+        ai_reply = await asyncio.to_thread(
+            ask_ai,
+            user_id=user_id,
+            user_input=user_message
         )
+        await send_long_message(update, ai_reply, parse_mode=ParseMode.HTML)
         return
 
     # === FOTO ===

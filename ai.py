@@ -7,6 +7,8 @@ import textwrap
 import re
 import bleach
 import html as html_escape
+from datetime import datetime
+import pytz
 
 dotenv.load_dotenv()
 
@@ -55,6 +57,21 @@ def trim_parts_by_length(parts):
             break
 
     return trimmed_parts
+
+def get_time_hint():
+    zones = {
+        "Jakarta": "Asia/Jakarta",
+        "Tokyo": "Asia/Tokyo",
+        "London": "Europe/London",
+        "New York": "America/New_York"
+    }
+    now_utc = datetime.now(pytz.utc)
+    hint = []
+    for city, zone in zones.items():
+        local_time = now_utc.astimezone(pytz.timezone(zone))
+        time_str = local_time.strftime('%H:%M')
+        hint.append(f"{city}: {time_str}")
+    return "Current world time (for reasoning): " + ", ".join(hint)
 
 def markdown_to_html(text):
     text = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', text, flags=re.DOTALL)
@@ -126,6 +143,8 @@ def ask_ai(user_id, user_input=None, image_path=None, history=None):
             "Jangan bilang kamu AI. Jangan kasih penjelasan yang terdengar pintar. Jangan overused kata 'ehh?', 'uuu~', atau emoji lucu. "
             "Kalau gak tahu jawabannya, cukup bilang ‘gatau’ atau ‘hmm...’. Dan kamu gak selalu semangat balesin chat, kadang cuek aja."
         )
+
+        system_prompt += "\n\n" + get_time_hint()
 
         parts.append({"text": system_prompt})
 
