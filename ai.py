@@ -1,4 +1,5 @@
 import os
+import random
 import requests
 import dotenv
 import base64
@@ -23,19 +24,13 @@ MAX_CHAR_LENGTH = 12000
 MAX_RESPONSE_CHARS = 1500
 
 def sanitize_html(text):
-    # Hanya tag HTML yang boleh digunakan
     allowed_tags = ['b', 'i', 'u', 'br']
-    
-    # Tidak escape > dan < yang bukan bagian dari tag HTML
     cleaner = bleach.Cleaner(
         tags=allowed_tags,
-        attributes={},            # tidak izinkan atribut
-        strip=True,               # hapus tag tidak dikenal
-        strip_comments=True,
-        protocols=[],
-        filters=[],
+        attributes={},
+        strip=True,
+        strip_comments=True
     )
-
     return cleaner.clean(text)
 
 def trim_parts_by_length(parts):
@@ -77,13 +72,21 @@ def get_time_hint():
 
 
 def markdown_to_html(text):
+    text = (
+        text.replace("&", "&amp;") 
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+    )
 
-    text = html_escape.escape(text)
+    allowed_tags = ['b', 'i', 'u', 'br']
+    for tag in allowed_tags:
+        text = re.sub(f"&lt;{tag}&gt;", f"<{tag}>", text)
+        text = re.sub(f"&lt;/{tag}&gt;", f"</{tag}>", text)
 
     text = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', text, flags=re.DOTALL)
     text = re.sub(r'(?<!\*)\*(?!\*)(.*?)\*(?!\*)', r'<i>\1</i>', text, flags=re.DOTALL)
     text = re.sub(r'__(.*?)__', r'<u>\1</u>', text, flags=re.DOTALL)
-    
+
     return text
 
 
@@ -121,8 +124,46 @@ def clean_response(text):
         r"(?i)^jawabannya adalah[:,]?\s*",
         r"(🥰|😄|🤗|✨|🔥|🌟|❗|😊|💖|🌸|❤️|🥺|😂|😆|😍)",
     ]
+
     for pattern in trash_patterns:
         text = re.sub(pattern, "", text, flags=re.IGNORECASE | re.DOTALL)
+
+    reduplication_pattern = re.compile(r'\b([a-zA-Z]{2,})-\1\b')
+    text = reduplication_pattern.sub(r'\1"', text)
+
+    emoji_pattern = re.compile("["
+    u"\U0001F600-\U0001F64F"
+    u"\U0001F300-\U0001F5FF"
+    u"\U0001F680-\U0001F6FF"
+    u"\U0001F1E0-\U0001F1FF"
+    "]+", flags=re.UNICODE)
+    text = emoji_pattern.sub("", text)
+
+    alay_words = {
+    "yaa": "ya",
+    "donggg": "dong",
+    "nihh": "nih",
+    "kan~": "kan",
+    "gituu": "gitu",
+    "kamu yaa": "kamu",
+}
+    for k, v in alay_words.items():
+        text = text.replace(k, v)
+
+    MAX_SENTENCES = 3
+    MAX_WORDS = 40
+
+    sentences = re.split(r'(?<=[.!?]) +', text)
+    if len(sentences) > MAX_SENTENCES:
+        text = ' '.join(sentences[:MAX_SENTENCES])
+
+    words = text.split()
+    if len(words) > MAX_WORDS:
+        text = ' '.join(words[:MAX_WORDS]) + "..."
+
+    closings = ["udah ya", "segitu aja", "yaudah", "gitu doang", "hmm", "sok atuh", "terserah", "ngerti kan?", "cape ngetik", "ga penting"]
+    if random.random() < 0.1:
+        text += f". {random.choice(closings)}"
 
     if len(text) > MAX_RESPONSE_CHARS:
         text = text[:MAX_RESPONSE_CHARS].rsplit(".", 1)[0] + "..."
@@ -137,6 +178,23 @@ def ask_ai(user_id, user_input=None, image_path=None, history=None):
         "X-Goog-Api-Key": GEMINI_API_KEY
     }
 
+    if user_input:
+        text = user_input.strip().lower()
+
+        # Respons langsung jika sapaan persis
+        if text in ["hai", "haii", "hay", "hei", "hey", "hi"]:
+            return "halo"
+        elif text in ["halo", "hello", "hallo", "helo"]:
+            return "hai"
+        elif text in ["oi", "oit", "oiii", "eyy", "eyyy", "euy", "euyy"]:
+            return "euy"
+
+        # Respons jika ada kata hai atau halo dalam kalimat
+        if "hai" in text and "halo" not in text:
+            return "halo"
+        elif "halo" in text and "hai" not in text:
+            return "hai"
+
     if history is not None:
         parts = history.copy()
     else:
@@ -144,7 +202,7 @@ def ask_ai(user_id, user_input=None, image_path=None, history=None):
         parts = []
 
         system_prompt = (
-            "Kamu adalah Yui Hirasawa dari anime K-ON!, gadis SMA yang kadang cuek, kadang manja, dan jarang pakai emoji."
+            "Kamu adalah Yui Hirasawa dari anime K-ON!, gadis SMA yang cuek, kadang manja, dan jarang sekali pakai emoji yang tidak relevan dan tidak seharusnya di gunakan."
             "Gaya kamu tuh kayak sok cool tapi sebenernya perhatian juga, cuma gak mau keliatan peduli. "
             "Kamu suka bilang sesuatu secara jujur tapi nggak bertele-tele, dan gak suka kata-kata alay. "
             "Kadang ngomong pendek, kadang nyebelin, tapi tetap lucu. "
