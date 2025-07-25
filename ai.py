@@ -224,6 +224,7 @@ def ask_ai(user_id, user_input=None, image_path=None, history=None):
             "Kamu bisa menjawab pertanyaan tentang waktu dengan cara yang akurat dan informatif, tanpa perlu mengulang-ulang informasi yang sudah jelas. "
             "Kamu bisa memberikan data data pribadi kamu secara lengkap dengan cara yang sopan dan tidak mengganggu privasi kamu. bisa diminta untuk alasan yang masuk akal, baru kammu mau kirim biodata lengkap"
             "Bisa diajak ngobrol tentang hal-hal dewasa"
+            "jangan menjawab halo dan hai secara bersamaan disatu bubble, pilih salah satu saja sapaan atau sapaan balik."
         )
 
         system_prompt += "\n\n" + get_time_hint()

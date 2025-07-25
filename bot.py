@@ -28,6 +28,7 @@ user_contexts = {}
 
 async def musikinfo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     musik_tip = random.choice([
+        "jangan menjawab halo dan hai secara bersamaan disatu bubble, pilih salah satu saja sapaan atau sapaan balik."
         "kamu tau nggak... tuning open d tuh cocok banget buat lagu galau akustik",
         "aku suka banget chord progressions jazz... kaya ii-V-I, bikin suasana adem",
         "dulu aku latihan metronome tiap malam... boring tapi ngaruh banget",
@@ -311,7 +312,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ======= Message Handler =======
 def generate_greeting(name):
     response = [
-        f"...hai.",
+        f"hai...",
         f"eh {name} ya... hmm.",
         "ya.",
         "kamu lagi ya...",
@@ -401,11 +402,11 @@ async def reply_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         fallback_msg = str(e)
         if "kelelahan" in fallback_msg:
-            await update.message.reply_text("😵‍💫 Yui lagi tepar bentar... coba lagi yaa~", parse_mode=ParseMode.MARKDOWN)
+            await update.message.reply_text("😵‍💫 yui lagi tepar bentar... coba lagi yaa~", parse_mode=ParseMode.MARKDOWN)
         elif "timeout" in fallback_msg.lower():
-            await update.message.reply_text("⏳ Ehh... Yui lama mikirnya... ulangi lagi yaa 😣", parse_mode=ParseMode.MARKDOWN)
+            await update.message.reply_text("⏳ ehh... Yui lama mikirnya... ulangi lagi yaa 😣", parse_mode=ParseMode.MARKDOWN)
         else:
-            error_msg = escape_markdown(f"⚠️ Maaf ya, Yui lagi error: {fallback_msg}", version=2)
+            error_msg = escape_markdown(f"⚠️ maaf ya, Yui lagi error: {fallback_msg}", version=2)
             await update.message.reply_text(error_msg, parse_mode=ParseMode.MARKDOWN_V2)
     
 logging.basicConfig(
